@@ -70,7 +70,7 @@ def unpack_enabled(a,count):
 class BitBuffer:
 	def __init__(self,data):
 		self.bits = bitarray(endian='little')
-		self.bits.fromstring(data)
+		self.bits.frombytes(data)
 		self.currentbit = 0
 	def __len__(self):
 		return len(self.bits) - self.currentbit
@@ -334,7 +334,7 @@ class ReplayManager:
 	def read_str(self):
 		str = ''
 		b = self.replaydata.read(1)
-		while b != '\0':
+		while b != '\0': #read until you find 0x00
 			str += b
 			b = self.replaydata.read(1)
 		return str
@@ -367,11 +367,13 @@ class ReplayManager:
 				#print u16,name,u32 #u32 always == 1
 				count = self.read_byte()
 				entities = []
+				#finds each entity present in the replay(?)
 				for x in xrange(count):
 					str = self.read_str()
 					c = self.read_byte()
 					unk1 = self.read_int()
 					unk2 = self.read_int()
+					print "Found Entity: %s" %str
 					entities.append((str,c,unk1,unk2))
 				snapshot_length = self.read_int16()
 				entity_snapshot = self.replaydata.read(snapshot_length)
@@ -379,6 +381,7 @@ class ReplayManager:
 				es = EntitySnapshot()
 				es.parse_header(bits)
 				typedesc = (name,u32,entities,None)
+				print "typedesc name: %s" %typedesc[0]
 				es.parse_body(bits,typedesc)
 				self.TypeDesc[i][u16] = (name,u32,entities,es)
 				#print es
