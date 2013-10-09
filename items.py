@@ -6,6 +6,7 @@ from struct import unpack
 def test():
 	x = ReplayManager(argv[1])
 	x.StartPlayback()
+	print "Flipping through frames"
 	while x.NextFrame():
 		for id in (id for id in x.addedentities if x.EntityPool[id].typedesc[0] == 'Item'):
 			

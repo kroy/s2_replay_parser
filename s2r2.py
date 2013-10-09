@@ -84,24 +84,24 @@ class BitBuffer:
 		if count == 0:
 			result = []
 		elif count <= 8:
-			result = struct.unpack('B',self.bits[self.currentbit:self.currentbit+count].tostring())[0]
+			result = struct.unpack('B',self.bits[self.currentbit:self.currentbit+count].tobytes())[0]
 			if type == 13:
 				result /= 255.0
 		elif count <= 16:
-			result = struct.unpack('<H',self.bits[self.currentbit:self.currentbit+count].tostring())[0]
+			result = struct.unpack('<H',self.bits[self.currentbit:self.currentbit+count].tobytes())[0]
 		elif count <=24:
 			x = self.bits[self.currentbit:self.currentbit+count]
 			while len(x) < 32:
 				x.append(0)
 			if type == 3:
-				result = struct.unpack('<f',x.tostring())[0]
+				result = struct.unpack('<f',x.tobytes())[0]
 			else:
-				result = struct.unpack('<I',x.tostring())[0]
+				result = struct.unpack('<I',x.tobytes())[0]
 		elif count <=32:
 			if type == 3:
-				result = result = struct.unpack('<f',self.bits[self.currentbit:self.currentbit+count].tostring())[0]
+				result = result = struct.unpack('<f',self.bits[self.currentbit:self.currentbit+count].tobytes())[0]
 			else:
-				result = result = struct.unpack('<I',self.bits[self.currentbit:self.currentbit+count].tostring())[0]
+				result = result = struct.unpack('<I',self.bits[self.currentbit:self.currentbit+count].tobytes())[0]
 		else:
 			result = self.bits[self.currentbit:self.currentbit+count]
 		#self.bits = self.bits[count:]
@@ -204,6 +204,7 @@ class EntitySnapshot:
 			return 6
 		return 0
 	"""Parse header for entity from bitarray"""
+	#bits is actually a BitBuffer, a custom wrapper for a bitarray (see above)
 	def parse_header(self,bits):
 		if bits.ReadBit():
 			self.id = bits.ReadBit();
@@ -305,12 +306,12 @@ class ReplayInfo:
 """Class holding all of the replay information"""
 class ReplayManager:
 	def __init__(self,honreplay):
-		self.formatversion = 0
-		self.serverversion = '0'
+		self.formatversion = 0 		#the version of the s2r2 file
+		self.serverversion = '0' 	#version of the server the game was played on
 		self.EntityPool = {}
 		self.currentframe = 0
 		self.replaydata = None
-		self.zipfile = ZipFile(honreplay,'r')
+		self.zipfile = ZipFile(honreplay,'r')	#open and read the replayfile as a zipfile
 		self.replayinfo = ReplayInfo(self.zipfile.open('replayinfo','r'))
 		self.TypeDesc = [{},{}]
 		self.TypeMap = {}
@@ -331,10 +332,12 @@ class ReplayManager:
 		return struct.unpack("<f",self.replaydata.read(4))[0]
 	def read_byte(self):
 		return struct.unpack("B",self.replaydata.read(1))[0]
+	#read a str from the replaydata.  Things such as varnames, item names,
+	# hero names are stored as strings
 	def read_str(self):
 		str = ''
 		b = self.replaydata.read(1)
-		while b != '\0': #read until you find 0x00
+		while b != '\0': #read until you find 0x00 (end of string)
 			str += b
 			b = self.replaydata.read(1)
 		return str
@@ -350,6 +353,8 @@ class ReplayManager:
 		return dict(zip(data[:-1:2], data[1::2]))
 		#return zip(data[:-1:2], data[1::2])
 	"""Start a playback - parse everything before the first server frame"""
+	#This is the beginning of the parsing. Initializes most of the instance vars
+	#
 	def StartPlayback(self):
 		#self.replaydata = self.zipfile.open('replaydata','r')
 		self.replaydata = StringIO.StringIO(self.zipfile.read('replaydata'))
@@ -357,24 +362,29 @@ class ReplayManager:
 			raise ValueError('Header of replaydata does not match')
 		self.formatversion = self.read_int()
 		self.serverversion = '%d.%d.%d.%d' % tuple(self.read_byte() for i in range(4))
+		print "Format Version: %s" %self.formatversion
+		print "Server Version: %s" %self.serverversion
 		#read entity type descriptions along with default values
 		for i in xrange(2):
 			varnum = self.read_int()
+			print "Varnum: %i" %varnum
 			for _ in xrange(varnum):
+				print "On Var: %i" %_
 				u16 = self.read_int16()
 				name = self.read_str()
 				u32 = self.read_int()
-				#print u16,name,u32 #u32 always == 1
+				print u16,name,u32 #u32 always == 1
 				count = self.read_byte()
-				entities = []
+				entities = [] #array of tuples representing entities found in beginning of replay?
 				#finds each entity present in the replay(?)
 				for x in xrange(count):
 					str = self.read_str()
+					#not sure what c, unk1 and unk2 are
 					c = self.read_byte()
 					unk1 = self.read_int()
 					unk2 = self.read_int()
-					print "Found Entity: %s" %str
-					entities.append((str,c,unk1,unk2))
+					#print "Found Entity: %s %s %i %i" %(str, c, unk1, unk2)
+					entities.append((str,c,unk1,unk2)) 
 				snapshot_length = self.read_int16()
 				entity_snapshot = self.replaydata.read(snapshot_length)
 				bits = BitBuffer(entity_snapshot)
@@ -383,6 +393,7 @@ class ReplayManager:
 				typedesc = (name,u32,entities,None)
 				print "typedesc name: %s" %typedesc[0]
 				es.parse_body(bits,typedesc)
+				#print es
 				self.TypeDesc[i][u16] = (name,u32,entities,es)
 				#print es
 		
@@ -421,7 +432,7 @@ class ReplayManager:
 			return False
 		if length > 0 :
 			bits = BitBuffer(self.replaydata.read(length))
-			snapshot = CSnapshot(bits)
+			snapshot = CSnapshot(bits) #parses the data found in the frame
 			if self.state1count > 0:
 				x = unpack_enabled(bits,self.state1count)
 				for _ in xrange(len(x)):
