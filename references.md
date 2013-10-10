@@ -20,9 +20,29 @@ Struct Format chars
 		p	char[]	string	 	 
 		P	void *	integer	 	(5), (3)
 
+Terminology:
+	
+	Entity: the basic building blocks of a HoN game. Everything in a HoN game is done to an entity, and is caused by
+		an entity (I believe). In the context of the replay file, Entities are represented as objects with a certain
+		number of fields. There is a significant amount of magic involved in parsing entity objects.
+
+Classes included in s2r2.py and their purposes:
+	
+	ReplayManager: This class initializes and builds the replay data into an intelligible format using the other classes
+		included in s2r2.py.  It allows the user to step through each frame of the replay and extract all entity states.
+		The StartPlayback() method must be called before stepping through each frame with NextFrame().
+
+	BitBuffer: A wrapper for a bitarray. This allows for bits to be read from the replaydata in a special way in order
+		to respect the format of the s2 replay data
+
+	EntitySnapshot: Represents the state of an entity at a given point in time
+
+	CSnapshot: Represents the data contained within a frame of the replay. The data includes entities and game events
+
+
 Structure of a Replay file:
 
-	An s2 replay file (s2r2) is a binary file containing a compressed representation of all of the game data
+	An s2 replay file is a binary file containing a representation of all of the game data
 	included in a HoN game.  The game is divided into frames which contain all data for a given snapshot of the game.
 	Frames contain references to entities, which are the building blocks of a replay.
 
@@ -53,4 +73,12 @@ Structure of a Replay file:
 	-Next are the StateBlocks which are used to build the EntityMap. The EntityMap is what links the EntityPool
 		to the StringSets[3] dictionary. This is how the name of the entity in question is extracted from the raw
 		entity tuple contained in the entity pool.
-			-> Not sure what the purpose of separating the two functions out like this is.
+			-> I am not sure what the purpose of including the Map in the first place.  It seems that it would be easier
+				to simply include the StringSet[3] id in the EntityPool tuple.
+
+	--------------------End of Replay Data initialization (all of the above is parsed in ReplayManager.StartPlayback())
+
+	-The next chunk of data contains the frames of the actual replay.  Each frame is structured as follows
+		-> The first 4 bytes of a frame contain the length of the frame
+		-> The replay parser reads the frame into a BitBuffer.
+		-> The BitBuffer is parsed into a snapshot

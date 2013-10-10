@@ -67,6 +67,7 @@ def unpack_enabled(a,count):
 	return result
 
 """A class simulating the same CBitBuffer used in K2 engine"""
+#This is a wrapper class for bitarray, providing some funtionality necessary for parsing the data
 class BitBuffer:
 	def __init__(self,data):
 		self.bits = bitarray(endian='little')
@@ -419,7 +420,7 @@ class ReplayManager:
 		# for i in xrange(len(self.StringSets)):
 		# 	print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		# 	print self.StringSets[i] 
-		
+		#print len(self.StringSets[3])
 		if self.formatversion > 3:
 			count = self.read_int()
 		else:
@@ -434,7 +435,8 @@ class ReplayManager:
 		
 		#EntityMap is used to link the EntityPool entries to the StringSets entries (see references.md and items.py)
 		self.EntityMap = dict([struct.unpack("<HI",self.StateBlocks[1][_*6:_*6+6]) for _ in xrange(self.state2count)])
-		print self.EntityMap
+		#print self.EntityMap
+		#print len(self.EntityMap)
 	def FindClient(self,index):
 		for es in (es for es in self.EntityPool.values() if es.typedesc[0] == 'Player' and es['m_iClientNumber'] == index):
 			return es
