@@ -11,7 +11,9 @@ def test():
 		for id in (id for id in x.addedentities if x.EntityPool[id].typedesc[0] == 'Item'):
 			
 			print '___________________\nItem purchase, entity id %d' % id
-		#	print 'framenum %d' % x.framenum
+			# print 'framenum %d' % x.framenum
+			# print 'Key: ' + str(x.EntityMap[x.EntityPool[id].EntityIndex])
+			# print 'EntityPool id: ' + x.EntityPool[id]
 			print 'Item: ' + x.StringSets[3][str(x.EntityMap[x.EntityPool[id].EntityIndex])]
 		#	print x.EntityPool[id]
 			print 'Owner Hero: ' + x.StringSets[3][str(x.EntityMap[x.EntityPool[x.EntityPool[id]['m_uiOwnerIndex']].EntityIndex])]

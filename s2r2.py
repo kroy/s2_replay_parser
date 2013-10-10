@@ -181,6 +181,7 @@ class CSnapshot:
 			a.ReadBits(8)
 			
 """A class for entity snapshot (simulating K2's CEntitySnapshot)"""		
+#A class representing the properties of an entity at a certain point in time
 class EntitySnapshot:
 	def __init__(self):
 		self.flags = 7
@@ -316,14 +317,16 @@ class ReplayManager:
 		self.TypeDesc = [{},{}]
 		self.TypeMap = {}
 		self.EntityMap = {}
-		self.StringSets = []
+		self.StringSets = []		#array of dicts containing global constants (see references.md)
 		self.StateBlocks = []
-		self.MapName = ''
+		self.MapName = ''			#map on which the game was played
 		self.state1count = 0
-		self.framenum = -1
+		self.framenum = -1 			#the game frame which this replaymanager is looking at
 		self.changedentities = []
 		self.addedentities = []
 		self.deletedentities = []
+
+	#Helper methods used to pull the binary data in the replay file
 	def read_int(self):
 		return struct.unpack("<I",self.replaydata.read(4))[0]
 	def read_int16(self):
@@ -364,63 +367,74 @@ class ReplayManager:
 		self.serverversion = '%d.%d.%d.%d' % tuple(self.read_byte() for i in range(4))
 		print "Format Version: %s" %self.formatversion
 		print "Server Version: %s" %self.serverversion
-		#read entity type descriptions along with default values
+		#read entity type descriptions of game attributes along with default values
 		for i in xrange(2):
 			varnum = self.read_int()
 			print "Varnum: %i" %varnum
 			for _ in xrange(varnum):
-				print "On Var: %i" %_
+				#print "On Var: %i" %_
 				u16 = self.read_int16()
 				name = self.read_str()
 				u32 = self.read_int()
 				print u16,name,u32 #u32 always == 1
 				count = self.read_byte()
 				entities = [] #array of tuples representing entities found in beginning of replay?
-				#finds each entity present in the replay(?)
+				#finds each entity required for initialization of game
 				for x in xrange(count):
 					str = self.read_str()
 					#not sure what c, unk1 and unk2 are
 					c = self.read_byte()
 					unk1 = self.read_int()
 					unk2 = self.read_int()
-					#print "Found Entity: %s %s %i %i" %(str, c, unk1, unk2)
+					#print "Found Entity: %s %i %i %i" %(str, c, unk1, unk2)
 					entities.append((str,c,unk1,unk2)) 
 				snapshot_length = self.read_int16()
 				entity_snapshot = self.replaydata.read(snapshot_length)
 				bits = BitBuffer(entity_snapshot)
-				es = EntitySnapshot()
+				es = EntitySnapshot() #This holds the values of all of the vars pertaining to the entity
 				es.parse_header(bits)
-				typedesc = (name,u32,entities,None)
-				print "typedesc name: %s" %typedesc[0]
+				typedesc = (name,u32,entities,None) #This links the varnames with their values?
+				#print "typedesc name: %s" %typedesc[0]
 				es.parse_body(bits,typedesc)
 				#print es
 				self.TypeDesc[i][u16] = (name,u32,entities,es)
 				#print es
-		
+		#Not sure what these represent
 		for _ in xrange(self.read_int()):
 			u1 = self.read_int16()
 			u2 = self.read_int16()
 			self.TypeMap[u1] = u2
+			#print "u1: %i, u2: %i" %(u1,u2)
 			
 		self.MapName = self.read_str()
+		#print self.MapName
 		
 		if self.formatversion > 3:
 			count = self.read_int()
 		else:
 			count = 5
 
+		#This is a key piece of the replay data
 		self.StringSets = [self.parse_string_set(self.read_str()) for _ in xrange(count - 1)] 
+		# for i in xrange(len(self.StringSets)):
+		# 	print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+		# 	print self.StringSets[i] 
 		
 		if self.formatversion > 3:
 			count = self.read_int()
 		else:
 			count = 3
 			
+		#StateBlocks are used to build the EntityMap
 		self.StateBlocks = [self.replaydata.read(self.read_int()) for _ in xrange(count - 1)]
 		self.state1count = ((len(self.StateBlocks[0]) / 4) + 31) / 32
 		self.state2count = len(self.StateBlocks[1]) / 6
+		#print self.StateBlocks
+		#print "state1count: %i \n state2count: %i" %(self.state1count, self.state2count)
 		
+		#EntityMap is used to link the EntityPool entries to the StringSets entries (see references.md and items.py)
 		self.EntityMap = dict([struct.unpack("<HI",self.StateBlocks[1][_*6:_*6+6]) for _ in xrange(self.state2count)])
+		print self.EntityMap
 	def FindClient(self,index):
 		for es in (es for es in self.EntityPool.values() if es.typedesc[0] == 'Player' and es['m_iClientNumber'] == index):
 			return es
